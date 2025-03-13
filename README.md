@@ -20,21 +20,6 @@ Documentation Generator automatically extracts code structure, docstrings, and t
 - **Consistent output formatting**: Standardized Markdown formatting with proper heading hierarchy
 - **Easy navigation**: Generated documentation includes links between related sections
 
-## Installation
-
-```bash
-# Clone the repository
-git clone https://github.com/yourusername/documentation_generator.git
-cd documentation_generator
-
-# Create a virtual environment
-python -m venv venv
-source venv/bin/activate  # On Windows: venv\Scripts\activate
-
-# Install dependencies
-pip install -r requirements.txt
-```
-
 ## Usage
 
 ```bash
@@ -58,10 +43,16 @@ python main.py --help
 
 ## Project Structure
 
-- `docgen/`: Main package
-  - `cli.py`: Command-line interface
-  - `file_processor.py`: Finds Python files to process
-  - `parser.py`: AST parsing to extract code structure and docstrings
-  - `generator.py`: Generates documentation in Markdown format
-  - `writer.py`: Writes documentation to output files
-
+```
+documentation_generator/
+├── README.md                       # Project documentation
+├── __init__.py                     # Root package initialization
+├── utils/                          # Main package
+│   ├── __init__.py                 # Package initialization 
+│   ├── cli.py                      # Command-line interface
+│   ├── file_processor.py           # Finds Python files to process
+│   ├── generator.py                # Generates Markdown documentation
+│   ├── parser.py                   # AST parsing for code structure extraction
+│   └── writer.py                   # Writes documentation to output files
+└── main.py                         # Entry point script
+```

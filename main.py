@@ -4,17 +4,14 @@ Documentation Generator - A tool to generate documentation from Python source co
 
 This module serves as the entry point for the documentation generator tool.
 """
-
-import argparse
-import os
 import sys
-from typing import Dict, List, Any
 
-from docgen.cli import parse_args
-from docgen.file_processor import FileProcessor
-from docgen.parser import CodeParser
-from docgen.generator import DocumentationGenerator
-from docgen.writer import OutputWriter
+
+from utils.cli import parse_args
+from utils.file_processor import FileProcessor
+from utils.parser import CodeParser
+from utils.generator import DocumentationGenerator
+from utils.writer import OutputWriter
 
 
 def main() -> int:

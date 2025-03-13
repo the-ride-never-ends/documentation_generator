@@ -4,8 +4,6 @@ Command-line interface for the documentation generator.
 
 import argparse
 import os
-import sys
-from typing import Any
 
 
 def parse_args() -> argparse.Namespace:
@@ -14,9 +12,7 @@ def parse_args() -> argparse.Namespace:
     
     Returns:
         argparse.Namespace: Parsed command-line arguments
-    
-    Raises:
-        SystemExit: If invalid arguments are provided
+
     """
     parser = argparse.ArgumentParser(
         description="Generate documentation from Python source code."

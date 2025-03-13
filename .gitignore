@@ -13,3 +13,7 @@ docs_*/
 # Markdown files in root directory (except README.md)
 /*.md
 !README.md
+
+# We only needs psutil when running the tests
+requirements.txt
+install.sh
