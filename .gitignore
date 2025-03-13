@@ -1,0 +1,15 @@
+_Claude_ignore_this_folder_please/
+.vscode/
+.pytest_cache/
+venv
+__pycache__/
+.venv
+tests/
+
+# Generated documentation
+docs/
+docs_*/
+
+# Markdown files in root directory (except README.md)
+/*.md
+!README.md
