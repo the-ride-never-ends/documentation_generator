@@ -4,6 +4,7 @@
 ## Version 0.7.0
 
 A Python CLI tool that parses Python codebases to generate structured documentation in Markdown format.
+Also a test to see the instruction following abilities of Claude Code.
 
 ## Overview
 
@@ -55,16 +56,6 @@ python main.py --help
 - `--docstring-style`: Docstring style to parse (default: google)
 - `--verbose`: Enable verbose output
 
-## Running Tests
-
-```bash
-# Run all tests
-python -m unittest
-
-# Run a specific test
-python -m unittest tests/test_module.py.TestClass.test_method
-```
-
 ## Project Structure
 
 - `docgen/`: Main package
@@ -73,14 +64,4 @@ python -m unittest tests/test_module.py.TestClass.test_method
   - `parser.py`: AST parsing to extract code structure and docstrings
   - `generator.py`: Generates documentation in Markdown format
   - `writer.py`: Writes documentation to output files
-
-## Performance
-
-The tool meets or exceeds the following performance metrics:
-
-- **Structural coverage**: 100% (identifies all classes, functions, and methods)
-- **Processing speed**: 12.7M lines/minute
-- **Memory usage**: <200MB for 100K lines
-- **Error rate**: 100% completion rate
-- **Output consistency**: 100% consistency in formatting
 
