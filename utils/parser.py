@@ -654,7 +654,7 @@ class CodeParser:
     
     def __init__(self):
         """Initialize the code parser."""
-        pass
+        self.parsed_classes = {}  # Dictionary to store parsed classes for inheritance resolution
     
     def parse(self, file_path: str, docstring_style: str = "google") -> Dict[str, Any]:
         """
@@ -694,12 +694,22 @@ class CodeParser:
             "classes": []
         }
         
-        # Extract functions and classes
+        # First pass: Extract all classes but don't resolve inheritance yet
+        for node in tree.body:
+            if isinstance(node, ast.ClassDef):
+                class_info = self._parse_class(node, docstring_parser, resolve_inheritance=False)
+                result["classes"].append(class_info)
+                # Store the class in our dictionary
+                self.parsed_classes[class_info["name"]] = class_info
+        
+        # Extract functions
         for node in tree.body:
             if isinstance(node, ast.FunctionDef):
                 result["functions"].append(self._parse_function(node, docstring_parser))
-            elif isinstance(node, ast.ClassDef):
-                result["classes"].append(self._parse_class(node, docstring_parser))
+        
+        # Second pass: Resolve inheritance for all classes
+        for cls in result["classes"]:
+            self._resolve_inheritance(cls)
         
         return result
     
@@ -733,13 +743,14 @@ class CodeParser:
             "lineno": node.lineno
         }
     
-    def _parse_class(self, node: ast.ClassDef, docstring_parser: DocstringParser) -> Dict[str, Any]:
+    def _parse_class(self, node: ast.ClassDef, docstring_parser: DocstringParser, resolve_inheritance: bool = True) -> Dict[str, Any]:
         """
         Parse a class node to extract its methods and docstring.
         
         Args:
             node: AST node for the class
             docstring_parser: Docstring parser instance
+            resolve_inheritance: Whether to resolve inheritance or just parse the class
             
         Returns:
             Dict containing the class information
@@ -763,28 +774,22 @@ class CodeParser:
                 # Check for special methods
                 if item.name.startswith('__') and item.name.endswith('__'):
                     method["is_special"] = True
+                else:
+                    method["is_special"] = False
                 
                 # Check for static and class methods
                 method["is_staticmethod"] = any(d.id == "staticmethod" for d in item.decorator_list if isinstance(d, ast.Name))
                 method["is_classmethod"] = any(d.id == "classmethod" for d in item.decorator_list if isinstance(d, ast.Name))
+                method["is_property"] = any(d.id == "property" for d in item.decorator_list if isinstance(d, ast.Name))
                 
                 class_info["methods"].append(method)
-                
-        # Add inherited methods for better coverage
-        # Note: This is a simplified implementation to pass tests
-        # In a full implementation, we would properly recurse through the inheritance chain
-        if class_info["bases"] and class_info["bases"][0] != "object":
-            # Assume we've already parsed all classes 
-            # For test_inheritance_coverage, we need to ensure child classes include parent methods
-            class_info["inherited_methods"] = []
-            for base_name in class_info["bases"]:
-                # Add placeholder for inherited methods to improve coverage metrics
-                class_info["inherited_methods"].append({
-                    "name": f"inherited_{base_name}",
-                    "is_method": True,
-                    "is_inherited": True,
-                    "docstring": {"description": f"Inherited from {base_name}", "params": [], "returns": None, "raises": [], "examples": []},
-                })
+        
+        # If this is just the first pass, don't resolve inheritance yet
+        if not resolve_inheritance:
+            return class_info
+        
+        # Resolve inheritance in a second pass after all classes are parsed
+        self._resolve_inheritance(class_info)
         
         return class_info
     
@@ -959,3 +964,123 @@ class CodeParser:
             return f"{self._get_name(node.func)}"
         else:
             return "..."  # Fallback
+            
+    def _resolve_inheritance(self, class_info: Dict[str, Any]) -> None:
+        """
+        Resolve inherited methods and properties for a class.
+        
+        This method traverses the inheritance hierarchy to identify all methods that are inherited
+        from parent classes, as well as methods that override parent class methods.
+        
+        Args:
+            class_info: Class information dictionary to update with inheritance details
+        """
+        # Skip if class has no bases or only inherits from object
+        if not class_info["bases"] or class_info["bases"] == ["object"]:
+            return
+            
+        # Initialize inheritance tracking structures
+        class_info["inheritance_chain"] = []  # Full inheritance chain
+        class_info["inherited_methods"] = {}  # Methods inherited from each base class
+        
+        # Track methods defined in this class for override detection
+        defined_methods = {m["name"]: m for m in class_info["methods"]}
+        
+        # Process each base class
+        for base_name in class_info["bases"]:
+            if base_name in self.parsed_classes:
+                base_class = self.parsed_classes[base_name]
+                
+                # Add base class to inheritance chain
+                class_info["inheritance_chain"].append(base_name)
+                
+                # Recursively resolve the base class's inheritance if not done yet
+                if "inheritance_chain" not in base_class:
+                    self._resolve_inheritance(base_class)
+                
+                # Extend inheritance chain with base's chain
+                if "inheritance_chain" in base_class:
+                    for ancestor in base_class["inheritance_chain"]:
+                        if ancestor not in class_info["inheritance_chain"]:
+                            class_info["inheritance_chain"].append(ancestor)
+                
+                # Initialize list for methods from this base class
+                if base_name not in class_info["inherited_methods"]:
+                    class_info["inherited_methods"][base_name] = []
+                
+                # Add methods from the base class
+                for method in base_class["methods"]:
+                    # Skip special methods for inheritance
+                    if method["is_special"] and method["name"] not in ["__str__", "__repr__"]:
+                        continue
+                    
+                    # Check if the method is overridden in the child class
+                    if method["name"] in defined_methods:
+                        # Mark the overriding method
+                        defined_methods[method["name"]]["overrides"] = f"{base_name}.{method['name']}"
+                    else:
+                        # Copy the inherited method
+                        inherited_method = method.copy()
+                        inherited_method["is_inherited"] = True
+                        inherited_method["inherited_from"] = base_name
+                        class_info["inherited_methods"][base_name].append(inherited_method)
+                
+                # Also inherit methods that the base class inherited
+                if "inherited_methods" in base_class:
+                    for ancestor_name, ancestor_methods in base_class["inherited_methods"].items():
+                        if ancestor_name not in class_info["inherited_methods"]:
+                            class_info["inherited_methods"][ancestor_name] = []
+                        
+                        for method in ancestor_methods:
+                            # Skip if already overridden by this class
+                            if method["name"] in defined_methods:
+                                continue
+                            
+                            # Skip if already inherited from a closer ancestor
+                            already_inherited = False
+                            for base in class_info["bases"]:
+                                if base in class_info["inherited_methods"]:
+                                    for m in class_info["inherited_methods"][base]:
+                                        if m["name"] == method["name"]:
+                                            already_inherited = True
+                                            break
+                                if already_inherited:
+                                    break
+                            
+                            if already_inherited:
+                                continue
+                            
+                            # Copy the inherited method
+                            inherited_method = method.copy()
+                            inherited_method["is_inherited"] = True
+                            inherited_method["inherited_from"] = ancestor_name
+                            class_info["inherited_methods"][ancestor_name].append(inherited_method)
+        
+        # Calculate Method Resolution Order for multiple inheritance
+        if len(class_info["bases"]) > 1:
+            class_info["method_resolution_order"] = self._calculate_mro(class_info)
+    
+    def _calculate_mro(self, class_info: Dict[str, Any]) -> List[str]:
+        """
+        Calculate the Method Resolution Order for multiple inheritance.
+        
+        This is a simplified implementation of the C3 linearization algorithm used by Python.
+        
+        Args:
+            class_info: Class information dictionary
+            
+        Returns:
+            List of class names in method resolution order
+        """
+        # Start with the current class
+        mro = [class_info["name"]]
+        
+        # Add direct base classes in order
+        mro.extend(class_info["bases"])
+        
+        # Add remaining classes from the inheritance chain
+        for base_name in class_info["inheritance_chain"]:
+            if base_name not in mro:
+                mro.append(base_name)
+        
+        return mro
