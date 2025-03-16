@@ -24,13 +24,13 @@ Documentation Generator automatically extracts code structure, docstrings, and t
 
 ```bash
 # Basic usage
-python main.py --input /path/to/code --output /path/to/docs
+python documentation_generator.py --input /path/to/code --output /path/to/docs
 
 # Specify docstring style
-python main.py --input /path/to/code --output /path/to/docs --docstring-style google
+python documentation_generator.py --input /path/to/code --output /path/to/docs --docstring-style google
 
 # Get help
-python main.py --help
+python documentation_generator.py --help
 ```
 
 ### Command-line Options
@@ -54,5 +54,5 @@ documentation_generator/
 │   ├── generator.py                # Generates Markdown documentation
 │   ├── parser.py                   # AST parsing for code structure extraction
 │   └── writer.py                   # Writes documentation to output files
-└── main.py                         # Entry point script
+└── documentation_generator.py                         # Entry point script
 ```
