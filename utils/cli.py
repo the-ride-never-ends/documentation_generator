@@ -4,6 +4,38 @@ Command-line interface for the documentation generator.
 
 import argparse
 import os
+from typing import List
+
+
+def load_ignore_paths(file_path: str) -> List[str]:
+    """
+    Load ignore paths from a file.
+    
+    Args:
+        file_path: Path to the file containing ignore paths
+        
+    Returns:
+        List[str]: List of paths to ignore
+    """
+    if not os.path.exists(file_path):
+        return []
+        
+    with open(file_path, 'r') as f:
+        return [line.strip() for line in f if line.strip() and not line.strip().startswith('#')]
+
+
+def save_ignore_paths(file_path: str, paths: List[str]) -> None:
+    """
+    Save ignore paths to a file.
+    
+    Args:
+        file_path: Path to the file to save ignore paths
+        paths: List of paths to ignore
+    """
+    with open(file_path, 'w') as f:
+        f.write("# Paths to ignore when generating documentation\n")
+        for path in paths:
+            f.write(f"{path}\n")
 
 
 def parse_args() -> argparse.Namespace:
@@ -50,10 +82,41 @@ def parse_args() -> argparse.Namespace:
         help="Enable verbose output"
     )
     
+    parser.add_argument(
+        "--ignore",
+        nargs="*",
+        default=[],
+        help="Paths to ignore when generating documentation"
+    )
+    
+    parser.add_argument(
+        "--ignore-file",
+        default=".docignore",
+        help="Path to file containing paths to ignore (default: .docignore)"
+    )
+    
+    parser.add_argument(
+        "--save-ignore",
+        action="store_true",
+        help="Save ignore paths to ignore file"
+    )
+    
     args = parser.parse_args()
     
     # Validate input path
     if not os.path.exists(args.input):
         parser.error(f"Input path does not exist: {args.input}")
+    
+    # Load ignore paths from file if it exists
+    file_ignore_paths = load_ignore_paths(args.ignore_file)
+    
+    # Combine ignore paths from file and command line
+    args.ignore = file_ignore_paths + args.ignore
+    
+    # Save ignore paths if requested
+    if args.save_ignore and args.ignore:
+        save_ignore_paths(args.ignore_file, args.ignore)
+        if args.verbose:
+            print(f"Saved ignore paths to {args.ignore_file}")
     
     return args

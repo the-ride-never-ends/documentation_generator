@@ -2,8 +2,9 @@
 Documentation generator module for converting parsed code into documentation.
 """
 
+from datetime import datetime
 import os
-from typing import Dict, List, Any, Optional
+from typing import Dict, List, Any
 
 
 class DocumentationGenerator:
@@ -46,6 +47,15 @@ class DocumentationGenerator:
         
         return documentation
     
+    def _get_datetime_string(self) -> str:
+        """
+        Return the formatted string representing the current datetime.
+
+        Returns:
+            str: A string with the format ': last updated HH:MM AM/PM on Month DD, YYYY'
+        """
+        return f": last updated {datetime.now().strftime('%I:%M %p on %B %d, %Y')}"
+
     def _generate_index(self) -> str:
         """
         Generate index file with links to all documented files.
@@ -77,7 +87,7 @@ class DocumentationGenerator:
             
             for file_path, base_name in sorted(files, key=lambda x: x[1]):
                 doc_path = base_name.replace('.py', '.md')
-                lines.append(f"- [{base_name}]({doc_path})")
+                lines.append(f"- [{base_name}]({doc_path}){self._get_datetime_string()}")
             
             lines.append("")
         
@@ -94,7 +104,7 @@ class DocumentationGenerator:
         Returns:
             Markdown content for the file
         """
-        lines = [f"# {os.path.basename(file_path)}", ""]
+        lines = [f"# {os.path.basename(file_path)}{self._get_datetime_string()}", ""]
         
         # Add file path
         lines.append(f"**File Path:** `{file_path}`")
@@ -108,7 +118,7 @@ class DocumentationGenerator:
             lines.append("")
         
         # Add table of contents
-        lines.append("## Contents")
+        lines.append("## Table of Contents")
         lines.append("")
         
         # Add functions to TOC - use heading level 3 consistently

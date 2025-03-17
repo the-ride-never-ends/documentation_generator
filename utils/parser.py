@@ -3,7 +3,6 @@ Code parsing module for the documentation generator.
 """
 
 import ast
-import os
 from typing import Dict, List, Any, Optional, Tuple
 
 
