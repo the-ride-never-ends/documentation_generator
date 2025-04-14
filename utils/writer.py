@@ -3,6 +3,7 @@ Output writer module for the documentation generator.
 """
 
 import os
+from pathlib import Path
 from typing import Dict
 
 
@@ -18,12 +19,13 @@ class OutputWriter:
         Args:
             output_dir: Directory to write documentation to
         """
-        self.output_dir = output_dir
-        # Pop off 'docs' from the end of output_dir if it exists.
-        # This is to prevent cases like '/docs/docs/'
-        if self.output_dir.endswith('docs'):
-            self.output_dir = os.path.dirname(self.output_dir)
-    
+        self.output_dir = Path(output_dir) if output_dir else Path("docs")
+
+        # Create output directory if it doesn't exist
+        self.output_dir = self.output_dir.resolve()
+        if not self.output_dir.exists():
+            self.output_dir.mkdir(parents=True, exist_ok=True)
+
     def write(self, documentation: Dict[str, str]) -> None:
         """
         Write documentation to output files.
@@ -31,28 +33,29 @@ class OutputWriter:
         Args:
             documentation: Dictionary of file paths to document content
         """
-        # Create output directory if it doesn't exist
-        os.makedirs(self.output_dir, exist_ok=True)
-        
         # Track existing files to avoid unnecessary overwrites
         existing_files = set()
-        for root, _, files in os.walk(self.output_dir):
-            for file in files:
-                existing_files.add(os.path.join(root, file))
-        
+        for path in self.output_dir.rglob('*'):
+            if path.is_file():
+                existing_files.add(path)
+
         # Write each file
         for file_path, content in documentation.items():
-            output_path = os.path.join(self.output_dir, file_path)
+            # Convert string path to Path object
+            output_path = self.output_dir / Path(file_path)
+
+            # If "docs/docs/" is somewhere in the path, replace it with "docs/".
+            if "docs/docs/" in str(output_path):
+                output_path = Path(str(output_path).replace("docs/docs/", "docs/"))
             
-            # Create parent directories if needed
-            os.makedirs(os.path.dirname(output_path), exist_ok=True)
-            
+            # Ensure directory structure exists
+            output_path.parent.mkdir(parents=True, exist_ok=True)
+
             # Check if file exists and content is the same
             if output_path in existing_files:
                 try:
-                    with open(output_path, 'r', encoding='utf-8') as f:
-                        existing_content = f.read()
-                        
+                    existing_content = output_path.read_text(encoding='utf-8')
+                    
                     # Skip writing if content hasn't changed
                     if existing_content == content:
                         continue
@@ -61,5 +64,10 @@ class OutputWriter:
                     pass
             
             # Write content
-            with open(output_path, 'w', encoding='utf-8') as f:
-                f.write(content)
+            output_path.write_text(content, encoding='utf-8')
+        
+        # Remove empty directories that may have been created in output_dir.
+        for path in self.output_dir.rglob('*'):
+            if path.is_dir() and not any(path.iterdir()):
+                path.rmdir()
+                print(f"Removed empty directory: {path}")
