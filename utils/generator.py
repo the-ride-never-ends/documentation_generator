@@ -36,13 +36,26 @@ class DocumentationGenerator:
         
         documentation = {}
         
+        # Find common base directory for input files
+        if self.parsed_files:
+            base_dirs = set(os.path.dirname(path) for path in self.parsed_files.keys())
+            common_base = os.path.commonpath(list(base_dirs)) if base_dirs else ""
+        else:
+            common_base = ""
+        
         # Generate index file
         documentation["index.md"] = self._generate_index()
         
         # Generate documentation for each file
         for file_path, file_info in self.parsed_files.items():
-            relative_path = os.path.basename(file_path)
-            output_path = f"{relative_path.replace('.py', '.md')}"
+            # Preserve directory structure relative to common base
+            if common_base and file_path.startswith(common_base):
+                relative_path = os.path.relpath(file_path, common_base)
+            else:
+                relative_path = os.path.basename(file_path)
+                
+            # Convert to markdown path
+            output_path = relative_path.replace('.py', '.md')
             documentation[output_path] = self._generate_file_documentation(file_path, file_info)
         
         return documentation
@@ -180,7 +193,13 @@ class DocumentationGenerator:
         lines = [f"## `{func['name']}`", ""]
         
         # Add function signature
-        params_str = ", ".join(p["name"] for p in func["params"])
+        params_with_defaults = []
+        for p in func["params"]:
+            if p.get("default") is not None:
+                params_with_defaults.append(f"{p['name']}={p['default']}")
+            else:
+                params_with_defaults.append(p['name'])
+        params_str = ", ".join(params_with_defaults)
         lines.append(f"```python")
         if func["is_async"]:
             lines.append(f"async def {func['name']}({params_str})")
@@ -205,23 +224,34 @@ class DocumentationGenerator:
                 if func_param["annotation"]:
                     param_annotations[func_param["name"]] = func_param["annotation"]
             
-            for param in func["docstring"]["params"]:
-                param_line = f"- `{param['name']}`"
+            # Process each parameter individually and ensure proper formatting
+            for i, param in enumerate(func["docstring"]["params"]):
+                param_name = param['name']
                 
                 # Use type from annotation if available, then from docstring, or 'Any' as fallback
                 param_type = "Any"
-                if param["name"] in param_annotations:
-                    param_type = param_annotations[param["name"]]
+                if param_name in param_annotations:
+                    param_type = param_annotations[param_name]
                 elif param.get("type"):
                     param_type = param.get("type")
                 
-                param_line += f" (`{param_type}`)"
+                # Get description, default to empty string
+                description = param.get("description", "Parameter description not provided")
                 
-                if param.get("description"):
-                    param_line += f": {param['description']}"
-                else:
-                    param_line += f": Parameter description not provided"
+                # Create a properly formatted parameter line
+                # Ensure each parameter is on its own line with correct type annotation
+                param_line = f"- `{param_name}` (`{param_type}`): {description.split('\n')[0]}"
                 lines.append(param_line)
+                
+                # Add additional lines of description with proper indentation
+                if '\n' in description:
+                    for line in description.split('\n')[1:]:
+                        if line.strip():
+                            lines.append(f"  {line.strip()}")
+                
+                # If there are more parameters following, add a newline between parameters
+                if i < len(func["docstring"]["params"]) - 1:
+                    lines.append("")
             
             lines.append("")
         
@@ -447,7 +477,8 @@ class DocumentationGenerator:
             
             # Add regular methods
             for method in sorted(regular_methods, key=lambda m: m["name"]):
-                method_line = f"- [`{method['name']}`](#{cls['name'].lower()}{method['name'].lower()})"
+                # Create proper markdown link with underscore between class and method name
+                method_line = f"- [`{method['name']}`](#{cls['name'].lower()}_{method['name'].lower()})"
                 if method["is_staticmethod"]:
                     method_line += " (static method)"
                 elif method["is_classmethod"]:
@@ -468,7 +499,9 @@ class DocumentationGenerator:
             
             # Add special methods
             for method in sorted(special_methods, key=lambda m: m["name"]):
-                lines.append(f"- [`{method['name']}`](#{cls['name'].lower()}{method['name'].lower().replace('__', '')})")
+                # Create proper markdown link with underscore between class and method name
+                # Keep double underscores in special method names to maintain consistency
+                lines.append(f"- [`{method['name']}`](#{cls['name'].lower()}_{method['name'].lower()})")
             
             lines.append("")
         
@@ -481,7 +514,8 @@ class DocumentationGenerator:
                     lines.append("")
                     
                     for method in sorted(cls["inherited_methods"][base_name], key=lambda m: m["name"]):
-                        method_line = f"- [`{method['name']}`](#{base_name.lower()}{method['name'].lower()})"
+                        # Create proper markdown link with underscore between class and method name
+                        method_line = f"- [`{method['name']}`](#{base_name.lower()}_{method['name'].lower()})"
                         
                         if method.get("is_staticmethod", False):
                             method_line += " (static method)"
@@ -508,7 +542,8 @@ class DocumentationGenerator:
                     lines.append("")
                     
                     for method in sorted(methods, key=lambda m: m["name"]):
-                        method_line = f"- [`{method['name']}`](#{base_name.lower()}{method['name'].lower()})"
+                        # Create proper markdown link with underscore between class and method name
+                        method_line = f"- [`{method['name']}`](#{base_name.lower()}_{method['name'].lower()})"
                         
                         if method.get("is_staticmethod", False):
                             method_line += " (static method)"
@@ -543,7 +578,14 @@ class DocumentationGenerator:
                 lines.append("")
             
             # Add method signature
-            params_str = ", ".join(p["name"] for p in method["params"])
+            params_with_defaults = []
+            for p in method["params"]:
+                if p.get("default") is not None:
+                    params_with_defaults.append(f"{p['name']}={p['default']}")
+                else:
+                    params_with_defaults.append(p['name'])
+            params_str = ", ".join(params_with_defaults)
+            
             if method["is_staticmethod"]:
                 lines.append(f"```python")
                 lines.append(f"@staticmethod")
@@ -556,7 +598,11 @@ class DocumentationGenerator:
                 lines.append(f"```")
             else:
                 lines.append(f"```python")
-                lines.append(f"def {method['name']}(self, {params_str.replace('self, ', '')})")
+                # Handle the case where params_str is empty or just "self"
+                if not params_str or params_str == "self":
+                    lines.append(f"def {method['name']}(self)")
+                else:
+                    lines.append(f"def {method['name']}(self, {params_str.replace('self, ', '')})")
                 lines.append(f"```")
             lines.append("")
             
@@ -577,23 +623,34 @@ class DocumentationGenerator:
                     if method_param["annotation"]:
                         param_annotations[method_param["name"]] = method_param["annotation"]
                 
-                for param in method_params:
-                    param_line = f"- `{param['name']}`"
+                # Process each parameter individually and ensure proper formatting
+                for i, param in enumerate(method_params):
+                    param_name = param['name']
                     
                     # Use type from annotation if available, then from docstring, or 'Any' as fallback
                     param_type = "Any"
-                    if param["name"] in param_annotations:
-                        param_type = param_annotations[param["name"]]
+                    if param_name in param_annotations:
+                        param_type = param_annotations[param_name]
                     elif param.get("type"):
                         param_type = param.get("type")
                     
-                    param_line += f" (`{param_type}`)"
+                    # Get description, default to empty string
+                    description = param.get("description", "Parameter description not provided")
                     
-                    if param.get("description"):
-                        param_line += f": {param['description']}"
-                    else:
-                        param_line += f": Parameter description not provided"
+                    # Create a properly formatted parameter line
+                    # Ensure each parameter is on its own line with correct type annotation
+                    param_line = f"- `{param_name}` (`{param_type}`): {description.split('\n')[0]}"
                     lines.append(param_line)
+                    
+                    # Add additional lines of description with proper indentation
+                    if '\n' in description:
+                        for line in description.split('\n')[1:]:
+                            if line.strip():
+                                lines.append(f"  {line.strip()}")
+                    
+                    # If there are more parameters following, add a newline between parameters
+                    if i < len(method_params) - 1:
+                        lines.append("")
                 
                 lines.append("")
             

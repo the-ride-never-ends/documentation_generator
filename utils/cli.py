@@ -101,11 +101,26 @@ def parse_args() -> argparse.Namespace:
         help="Save ignore paths to ignore file"
     )
     
+    parser.add_argument(
+        "--inheritance",
+        action="store_true",
+        help="Enable enhanced inheritance documentation with class hierarchies and method overrides"
+    )
+    
+    parser.add_argument(
+        "--self-doc",
+        action="store_true",
+        help="Enable self-documentation mode (for documenting this tool itself)"
+    )
+    
     args = parser.parse_args()
     
     # Validate input path
     if not os.path.exists(args.input):
         parser.error(f"Input path does not exist: {args.input}")
+    
+    # Always put output in a 'docs' subdirectory of the specified output path
+    args.output = os.path.join(args.output, "docs")
     
     # Load ignore paths from file if it exists
     file_ignore_paths = load_ignore_paths(args.ignore_file)

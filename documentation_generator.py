@@ -7,11 +7,11 @@ This module serves as the entry point for the documentation generator tool.
 import sys
 
 
-from .utils.cli import parse_args
-from .utils.file_processor import FileProcessor
-from .utils.parser import CodeParser
-from .utils.generator import DocumentationGenerator
-from .utils.writer import OutputWriter
+from utils.cli import parse_args
+from utils.file_processor import FileProcessor
+from utils.parser import CodeParser
+from utils.generator import DocumentationGenerator
+from utils.writer import OutputWriter
 
 
 def main() -> int:
@@ -35,7 +35,11 @@ def main() -> int:
     print(f"Processing {len(python_files)} Python files...")
     for file_path in python_files:
         try:
-            result = parser.parse(file_path, docstring_style=args.docstring_style)
+            # Enable inheritance resolution if the option is specified
+            inheritance_enabled = getattr(args, 'inheritance', False)
+            result = parser.parse(file_path, 
+                                docstring_style=args.docstring_style,
+                                resolve_inheritance=inheritance_enabled)
             parsed_files[file_path] = result
             if args.verbose:
                 print(f"Processed: {file_path}")
@@ -46,6 +50,13 @@ def main() -> int:
     generator = DocumentationGenerator(parsed_files)
     documentation = generator.generate(format=args.format)
     
+    # Handle self-documentation mode
+    self_doc_mode = getattr(args, 'self_doc', False)
+    if self_doc_mode:
+        # Add special handling for self-documentation
+        print("Running in self-documentation mode...")
+        # In self-documentation mode, we might want to add special headers or metadata
+        
     # Write output
     writer = OutputWriter(args.output)
     writer.write(documentation)
