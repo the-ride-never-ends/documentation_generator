@@ -7,6 +7,9 @@ import os
 from typing import List
 
 
+from .logger import logger
+
+
 def load_ignore_paths(file_path: str) -> List[str]:
     """
     Load ignore paths from a file.
@@ -132,6 +135,6 @@ def parse_args() -> argparse.Namespace:
     if args.save_ignore and args.ignore:
         save_ignore_paths(args.ignore_file, args.ignore)
         if args.verbose:
-            print(f"Saved ignore paths to {args.ignore_file}")
+            logger.info(f"Saved ignore paths to {args.ignore_file}")
     
     return args

@@ -60,7 +60,8 @@ class DocumentationGenerator:
         
         return documentation
     
-    def _get_datetime_string(self) -> str:
+    @staticmethod
+    def _get_datetime_string() -> str:
         """
         Return the formatted string representing the current datetime.
 
@@ -178,7 +179,8 @@ class DocumentationGenerator:
         
         return "\n".join(lines)
     
-    def _generate_function_documentation(self, func: Dict[str, Any]) -> List[str]:
+    @staticmethod
+    def _generate_function_documentation(func: Dict[str, Any]) -> List[str]:
         """
         Generate documentation for a function.
         
@@ -305,7 +307,8 @@ class DocumentationGenerator:
                 lines.append("")
         
         return lines
-    
+
+    # NOTE Actually a static method, but we keep it as an instance method because its argument is 'cls'
     def _generate_class_documentation(self, cls: Dict[str, Any]) -> List[str]:
         """
         Generate documentation for a class.
@@ -477,8 +480,8 @@ class DocumentationGenerator:
             
             # Add regular methods
             for method in sorted(regular_methods, key=lambda m: m["name"]):
-                # Create proper markdown link with underscore between class and method name
-                method_line = f"- [`{method['name']}`](#{cls['name'].lower()}_{method['name'].lower()})"
+                # Create a proper markdown link
+                method_line = f"- [`{method['name']}`](#{method['name'].lower()})"
                 if method["is_staticmethod"]:
                     method_line += " (static method)"
                 elif method["is_classmethod"]:
@@ -499,9 +502,9 @@ class DocumentationGenerator:
             
             # Add special methods
             for method in sorted(special_methods, key=lambda m: m["name"]):
-                # Create proper markdown link with underscore between class and method name
+                # Create a proper markdown link
                 # Keep double underscores in special method names to maintain consistency
-                lines.append(f"- [`{method['name']}`](#{cls['name'].lower()}_{method['name'].lower()})")
+                lines.append(f"- [`{method['name']}`](#{method['name'].lower()})")
             
             lines.append("")
         
@@ -514,8 +517,8 @@ class DocumentationGenerator:
                     lines.append("")
                     
                     for method in sorted(cls["inherited_methods"][base_name], key=lambda m: m["name"]):
-                        # Create proper markdown link with underscore between class and method name
-                        method_line = f"- [`{method['name']}`](#{base_name.lower()}_{method['name'].lower()})"
+                        # Create a proper markdown link
+                        method_line = f"- [`{method['name']}`](#{base_name.lower()}-{method['name'].lower()})"
                         
                         if method.get("is_staticmethod", False):
                             method_line += " (static method)"
@@ -542,8 +545,8 @@ class DocumentationGenerator:
                     lines.append("")
                     
                     for method in sorted(methods, key=lambda m: m["name"]):
-                        # Create proper markdown link with underscore between class and method name
-                        method_line = f"- [`{method['name']}`](#{base_name.lower()}_{method['name'].lower()})"
+                        # Create a proper markdown link
+                        method_line = f"- [`{method['name']}`](#{method['name'].lower()})"
                         
                         if method.get("is_staticmethod", False):
                             method_line += " (static method)"

@@ -17,3 +17,5 @@ docs_*/
 # We only needs psutil when running the tests
 requirements.txt
 install.sh
+*.log
+logs/

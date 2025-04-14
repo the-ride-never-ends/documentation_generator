@@ -6,6 +6,9 @@ import ast
 from typing import Dict, List, Any, Optional, Tuple
 
 
+from .logger import logger
+
+
 class DocstringParser:
     """
     Parse docstrings in different styles (Google, NumPy, reStructuredText).
@@ -68,7 +71,8 @@ class DocstringParser:
         
         return result
     
-    def _clean_docstring(self, docstring: str) -> str:
+    @staticmethod
+    def _clean_docstring(docstring: str) -> str:
         """
         Clean docstring by removing indentation and normalizing line endings.
         
@@ -112,8 +116,9 @@ class DocstringParser:
         
         # Default behavior
         return docstring, {}
-    
-    def _split_google_sections(self, docstring: str) -> Tuple[str, Dict[str, str]]:
+
+    @staticmethod
+    def _split_google_sections(docstring: str) -> Tuple[str, Dict[str, str]]:
         """
         Split Google-style docstring into description and sections.
         
@@ -152,7 +157,8 @@ class DocstringParser:
         
         return '\n'.join(description_lines), sections
     
-    def _split_numpy_sections(self, docstring: str) -> Tuple[str, Dict[str, str]]:
+    @staticmethod
+    def _split_numpy_sections(docstring: str) -> Tuple[str, Dict[str, str]]:
         """
         Split NumPy-style docstring into description and sections.
         
@@ -195,7 +201,8 @@ class DocstringParser:
         
         return '\n'.join(description_lines), sections
     
-    def _split_rest_sections(self, docstring: str) -> Tuple[str, Dict[str, str]]:
+    @staticmethod
+    def _split_rest_sections(docstring: str) -> Tuple[str, Dict[str, str]]:
         """
         Split reStructuredText-style docstring into description and sections.
         
@@ -247,13 +254,13 @@ class DocstringParser:
             sections: Dictionary of section name -> section content
             result: Dictionary to update with parsed information
         """
-        print(f"Google sections: {sections.keys()}")
+        logger.debug(f"Google sections: {sections.keys()}")
         for section, content in sections.items():
-            print(f"Section: {section}, Content: {content}")
+            logger.debug(f"Section: {section}, Content: {content}")
             if section.lower() in ("args", "arguments", "parameters"):
                 params = self._parse_google_params(content)
                 result["params"] = params
-                print(f"Parsed {len(params)} parameters from {section}")
+                logger.debug(f"Parsed {len(params)} parameters from {section}")
             elif section.lower() in ("returns", "return"):
                 result["returns"] = self._parse_google_returns(content)
             elif section.lower() in ("raises", "exceptions"):
@@ -296,8 +303,9 @@ class DocstringParser:
                 result["raises"].append(self._parse_rest_raise(section, content))
             elif section.lower() in ("example", "examples"):
                 result["examples"] = self._parse_examples(content)
-    
-    def _parse_google_params(self, content: str) -> List[Dict[str, str]]:
+
+    @staticmethod
+    def _parse_google_params(content: str) -> List[Dict[str, str]]:
         """
         Parse Google-style parameter section.
         
@@ -310,8 +318,8 @@ class DocstringParser:
         params = []
         lines = content.splitlines()
         
-        print(f"Google params content: {content}")
-        print(f"Params lines: {lines}")
+        logger.debug(f"Google params content: {content}")
+        logger.debug(f"Params lines: {lines}")
         
         # Fix for indented parameter definitions
         # Google style params are typically indented in the docstring
@@ -363,10 +371,11 @@ class DocstringParser:
                 {"name": "param3", "type": None, "description": "Third parameter"}
             ]
         
-        print(f"Parsed parameters: {params}")
+        logger.debug(f"Parsed parameters: {params}")
         return params
-    
-    def _parse_google_returns(self, content: str) -> Optional[Dict[str, str]]:
+
+    @staticmethod
+    def _parse_google_returns(content: str) -> Optional[Dict[str, str]]:
         """
         Parse Google-style returns section.
         
@@ -397,7 +406,8 @@ class DocstringParser:
                 "description": content.strip()
             }
     
-    def _parse_google_raises(self, content: str) -> List[Dict[str, str]]:
+    @staticmethod
+    def _parse_google_raises(content: str) -> List[Dict[str, str]]:
         """
         Parse Google-style raises section.
         
@@ -447,7 +457,8 @@ class DocstringParser:
             
         return exceptions
     
-    def _parse_numpy_params(self, content: str) -> List[Dict[str, str]]:
+    @staticmethod
+    def _parse_numpy_params(content: str) -> List[Dict[str, str]]:
         """
         Parse NumPy-style parameter section.
         
@@ -501,7 +512,8 @@ class DocstringParser:
             
         return params
     
-    def _parse_numpy_returns(self, content: str) -> Optional[Dict[str, str]]:
+    @staticmethod
+    def _parse_numpy_returns(content: str) -> Optional[Dict[str, str]]:
         """
         Parse NumPy-style returns section.
         
@@ -533,7 +545,8 @@ class DocstringParser:
                 "description": content.strip()
             }
     
-    def _parse_numpy_raises(self, content: str) -> List[Dict[str, str]]:
+    @staticmethod
+    def _parse_numpy_raises(content: str) -> List[Dict[str, str]]:
         """
         Parse NumPy-style raises section.
         
@@ -578,7 +591,8 @@ class DocstringParser:
             
         return exceptions
     
-    def _parse_rest_param(self, section: str, content: str) -> Dict[str, str]:
+    @staticmethod
+    def _parse_rest_param(section: str, content: str) -> Dict[str, str]:
         """
         Parse reStructuredText-style parameter.
         
@@ -606,8 +620,9 @@ class DocstringParser:
             "type": param_type,
             "description": description
         }
-    
-    def _parse_rest_raise(self, section: str, content: str) -> Dict[str, str]:
+
+    @staticmethod
+    def _parse_rest_raise(section: str, content: str) -> Dict[str, str]:
         """
         Parse reStructuredText-style exception.
         
@@ -625,8 +640,9 @@ class DocstringParser:
             "type": exception_type,
             "description": content.strip()
         }
-    
-    def _parse_examples(self, content: str) -> List[str]:
+
+    @staticmethod
+    def _parse_examples(content: str) -> List[str]:
         """
         Parse examples section.
         
@@ -698,7 +714,7 @@ class CodeParser:
         try:
             tree = ast.parse(source)
         except SyntaxError as e:
-            print(f"Error parsing {file_path}: {str(e)}")
+            logger.error(f"Error parsing {file_path}: {str(e)}")
             return {
                 "module_docstring": None,
                 "functions": [],
@@ -734,7 +750,7 @@ class CodeParser:
                 self._resolve_inheritance(cls)
             
             if len(result["classes"]) > 0 and len(self.parsed_classes) > 0:
-                print(f"Resolved inheritance for {len(result['classes'])} classes")
+                logger.debug(f"Resolved inheritance for {len(result['classes'])} classes")
         
         return result
     
@@ -1085,7 +1101,8 @@ class CodeParser:
         if len(class_info["bases"]) > 1:
             class_info["method_resolution_order"] = self._calculate_mro(class_info)
     
-    def _calculate_mro(self, class_info: Dict[str, Any]) -> List[str]:
+    @staticmethod
+    def _calculate_mro(class_info: Dict[str, Any]) -> List[str]:
         """
         Calculate the Method Resolution Order for multiple inheritance.
         

@@ -7,6 +7,9 @@ from typing import List
 import os.path
 
 
+from .logger import logger
+
+
 class FileProcessor:
     """
     Process files and directories to find Python files for documentation.
@@ -35,11 +38,18 @@ class FileProcessor:
         """
         # Normalize paths to absolute paths for comparison
         abs_path = os.path.abspath(path)
-        
+        logger.debug(f"Checking if path should be ignored: {abs_path}")
+
+        # ALWAYS ignore virtual environment and git directories
+        for dir_name in ['venv', '.venv', 'env', '.env', '.git']:
+            if dir_name in abs_path:
+                logger.debug(f"Ignoring virtual environment directory: {abs_path}")
+                return True
+
         for ignore_path in self.ignore_paths:
             # Normalize ignore path to absolute path
             abs_ignore_path = os.path.abspath(ignore_path)
-            
+
             # Check if the path is the ignore path or is a subdirectory of the ignore path
             if abs_path == abs_ignore_path or abs_path.startswith(abs_ignore_path + os.sep):
                 return True
@@ -61,6 +71,8 @@ class FileProcessor:
         else:
             # Walk the directory structure
             for root, dirs, files in os.walk(self.input_path):
+                logger.debug(f"Processing directory: {root}")
+
                 # Skip ignored directories
                 dirs[:] = [d for d in dirs if not self.should_ignore(os.path.join(root, d))]
                 

@@ -4,6 +4,7 @@ Documentation Generator - A tool to generate documentation from Python source co
 
 This module serves as the entry point for the documentation generator tool.
 """
+import logging
 import sys
 
 
@@ -12,6 +13,7 @@ from utils.file_processor import FileProcessor
 from utils.parser import CodeParser
 from utils.generator import DocumentationGenerator
 from utils.writer import OutputWriter
+from utils.logger import logger
 
 
 def main() -> int:
@@ -23,7 +25,10 @@ def main() -> int:
     """
     # Parse command line arguments
     args = parse_args()
-    
+
+    if args.verbose:
+        logger.setLevel(logging.DEBUG)
+
     # Process input files
     file_processor = FileProcessor(args.input)
     python_files = file_processor.find_python_files()
@@ -32,19 +37,21 @@ def main() -> int:
     parser = CodeParser()
     parsed_files = {}
     
-    print(f"Processing {len(python_files)} Python files...")
+    logger.info(f"Processing {len(python_files)} Python files...")
     for file_path in python_files:
         try:
             # Enable inheritance resolution if the option is specified
             inheritance_enabled = getattr(args, 'inheritance', False)
-            result = parser.parse(file_path, 
-                                docstring_style=args.docstring_style,
-                                resolve_inheritance=inheritance_enabled)
+            result = parser.parse(
+                file_path, 
+                docstring_style=args.docstring_style,
+                resolve_inheritance=inheritance_enabled
+            )
             parsed_files[file_path] = result
-            if args.verbose:
-                print(f"Processed: {file_path}")
+            
+            logger.debug(f"Processed: {file_path}")
         except Exception as e:
-            print(f"Error processing {file_path}: {str(e)}", file=sys.stderr)
+            logger.exception(f"Error processing {file_path}: {str(e)}", file=sys.stderr)
     
     # Generate documentation
     generator = DocumentationGenerator(parsed_files)
@@ -53,15 +60,15 @@ def main() -> int:
     # Handle self-documentation mode
     self_doc_mode = getattr(args, 'self_doc', False)
     if self_doc_mode:
-        # Add special handling for self-documentation
-        print("Running in self-documentation mode...")
+        # TODO Add special handling for self-documentation
+        logger.info("Running in self-documentation mode...")
         # In self-documentation mode, we might want to add special headers or metadata
         
     # Write output
     writer = OutputWriter(args.output)
     writer.write(documentation)
     
-    print(f"Documentation generated successfully in {args.output}")
+    logger.info(f"Documentation generated successfully in {args.output}")
     return 0
 
 

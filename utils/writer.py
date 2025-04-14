@@ -19,6 +19,10 @@ class OutputWriter:
             output_dir: Directory to write documentation to
         """
         self.output_dir = output_dir
+        # Pop off 'docs' from the end of output_dir if it exists.
+        # This is to prevent cases like '/docs/docs/'
+        if self.output_dir.endswith('docs'):
+            self.output_dir = os.path.dirname(self.output_dir)
     
     def write(self, documentation: Dict[str, str]) -> None:
         """
