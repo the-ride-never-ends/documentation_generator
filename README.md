@@ -27,7 +27,7 @@ Documentation Generator automatically extracts code structure, docstrings, and t
   - Mirrors input directory structure in the output
   - Creates missing directories automatically
   - Preserves existing files that haven't changed
-  - TODO: Fix issue where output is sometimes created in a nested directory (e.g., /output/docs/ instead of just /output/)
+  - TODO: Fix issue where output creates empty directories if no python files are in them.
 - **Fast and memory-efficient**: Processes over 9.5 million lines of code per minute with minimal memory usage
 - **Robust error handling**: Continues processing even with syntax errors or malformed docstrings
 - **Consistent output formatting**: Standardized Markdown formatting with proper heading hierarchy
