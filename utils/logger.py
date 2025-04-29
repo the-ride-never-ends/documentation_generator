@@ -23,7 +23,7 @@ def get_logger(name: str,
 
     Example:
         # Usage
-        logger = setup_logger(__name__)
+        logger = get_logger(__name__)
     """
     # Create a custom logger
     logger = logging.getLogger(name)
