@@ -19,3 +19,4 @@ requirements.txt
 install.sh
 *.log
 logs/
+test_reports/

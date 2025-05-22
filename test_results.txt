@@ -1,0 +1,127 @@
+Processing normal_file_0.py...
+Processing normal_file_1.py...
+Processing indentation_error.py...
+Processing normal_file_4.py...
+Processing normal_file_2.py...
+Processing normal_file_3.py...
+Processing long_lines.py...
+Processing incomplete_docs.py...
+Processing unusual_formatting.py...
+Processing syntax_error.py...
+
+Processed 10 files
+Successes: 10
+Failures: 0
+Success rate: 100.00%
+Error types: {}
+
+DEBUG: Child class section content:
+## `ChildClass`
+
+```python
+class ChildClass(BaseClass)
+```
+
+Child class that inherits from BaseClass.
+
+This class demonstrates single inheritance.
+
+**Inheritance Diagram:**
+
+BaseClass ← ChildClass
+
+**
+DEBUG: No overridable_method heading found. Available method headings: {'sections': []}
+DEBUG: Found mention of override: - [`overridable_method`](#overridable_method) (overrides `BaseClass.overridable_method`)
+
+Peak memory usage: 50.73 MB
+File size: 29217 lines
+Expected limit: 146.08 MB
+Estimated peak memory for 100K lines: 173.62 MB
+Parsed file docstring params: [{'name': 'param1', 'type': None, 'description': 'First parameter'}, {'name': 'param2', 'type': None, 'description': 'Second parameter'}, {'name': 'param3', 'type': None, 'description': 'Third parameter'}]
+MARKDOWN CONTENT:
+# test_typing.py: last updated 06:19 PM on May 07, 2025
+
+**File Path:** `/tmp/tmps7eqnqal/test_typing.py`
+
+## Module Description
+
+Test module for parameter typing.
+
+## Table of Contents
+
+### Functions
+
+- [`function_with_multiple_typed_params`](#function_with_multiple_typed_params)
+
+### Classes
+
+- [`TestClass`](#testclass)
+
+## Functions
+
+## `function_with_multiple_typed_params`
+
+```python
+def function_with_multiple_typed_params(param1, param2, param3)
+```
+
+Function with multiple typed parameters.
+
+**Parameters:**
+
+- `param1` (`str`): First parameter
+
+- `param2` (`int`): Second parameter
+
+- `param3` (`list`): Third parameter
+
+**Returns:**
+
+- `bool`: Result
+
+## Classes
+
+## `TestClass`
+
+```python
+class TestClass(object)
+```
+
+Test class with typed methods.
+
+**Methods:**
+
+- [`method_with_only_self`](#method_with_only_self)
+- [`method_with_typed_params`](#method_with_typed_params)
+
+### `method_with_only_self`
+
+```python
+def method_with_only_self(self)
+```
+
+Method with only self parameter.
+
+### `method_with_typed_params`
+
+```python
+def method_with_typed_params(self, param1, param2)
+```
+
+Method with typed parameters.
+
+**Parameters:**
+
+- `param1` (`str`): First parameter
+
+- `param2` (`int`): Second parameter
+
+
+Processing speed: 10106385.79 lines per minute
+File size: 6348 lines
+Processing time: 0.0377 seconds
+Class coverage: 100.00%
+Function coverage: 100.00%
+Overall structural coverage: 100.00%
+Method coverage: 200.00%

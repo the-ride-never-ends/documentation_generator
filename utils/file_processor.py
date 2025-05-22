@@ -14,6 +14,7 @@ class FileProcessor:
     """
     Process files and directories to find Python files for documentation.
     """
+    IGNORED_DIRS: list[str] = ['venv', '.venv', 'env', '.env', '.git', 'deprecated', 'docs']
     
     def __init__(self, input_path: str, ignore_paths: List[str] = None):
         """
@@ -40,10 +41,10 @@ class FileProcessor:
         abs_path = os.path.abspath(path)
         logger.debug(f"Checking if path should be ignored: {abs_path}")
 
-        # ALWAYS ignore virtual environment and git directories
-        for dir_name in ['venv', '.venv', 'env', '.env', '.git']:
+        # ALWAYS ignore virtual environment, deprecated, and git directories
+        for dir_name in self.IGNORED_DIRS:
             if dir_name in abs_path:
-                logger.debug(f"Ignoring virtual environment directory: {abs_path}")
+                logger.debug(f"Ignoring directory: {abs_path}")
                 return True
 
         for ignore_path in self.ignore_paths:
