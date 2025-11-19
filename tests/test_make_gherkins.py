@@ -69,102 +69,272 @@ def callable_with_complete_docstring():
 
 
 # Test Stubs for each Scenario
+# Each test follows the pattern: one Given, one When, one Then (no And clauses)
 
 
-def test_generate_gherkin_from_simple_function_docstring(simple_function):
+# Scenario 1: Generate Gherkin from a simple function docstring - Split into 6 tests
+def test_generate_gherkin_from_simple_function_docstring__gherkin_file_generated(simple_function):
     """
-    Scenario: Generate Gherkin from a simple function docstring
-    
     Given a callable with a docstring containing description, parameters, and returns
     When I call make_gherkins with the callable's docstring
     Then a Gherkin feature file should be generated
-    And the feature file should contain a Feature section with the description
-    And the feature file should contain Scenarios derived from the parameters
-    And a metadata dictionary should be returned
-    And the metadata dictionary should contain creation timestamp
-    And the metadata dictionary should contain content summary
     """
     pass
 
 
-def test_generate_gherkin_from_function_with_multiple_parameters(function_with_multiple_parameters):
+def test_generate_gherkin_from_simple_function_docstring__feature_section_with_description(simple_function):
     """
-    Scenario: Generate Gherkin from a function with multiple parameters
-    
+    Given a callable with a docstring containing description, parameters, and returns
+    When I call make_gherkins with the callable's docstring
+    Then the feature file should contain a Feature section with the description
+    """
+    pass
+
+
+def test_generate_gherkin_from_simple_function_docstring__scenarios_from_parameters(simple_function):
+    """
+    Given a callable with a docstring containing description, parameters, and returns
+    When I call make_gherkins with the callable's docstring
+    Then the feature file should contain Scenarios derived from the parameters
+    """
+    pass
+
+
+def test_generate_gherkin_from_simple_function_docstring__metadata_dictionary_returned(simple_function):
+    """
+    Given a callable with a docstring containing description, parameters, and returns
+    When I call make_gherkins with the callable's docstring
+    Then a metadata dictionary should be returned
+    """
+    pass
+
+
+def test_generate_gherkin_from_simple_function_docstring__metadata_contains_timestamp(simple_function):
+    """
+    Given a callable with a docstring containing description, parameters, and returns
+    When I call make_gherkins with the callable's docstring
+    Then the metadata dictionary should contain creation timestamp
+    """
+    pass
+
+
+def test_generate_gherkin_from_simple_function_docstring__metadata_contains_summary(simple_function):
+    """
+    Given a callable with a docstring containing description, parameters, and returns
+    When I call make_gherkins with the callable's docstring
+    Then the metadata dictionary should contain content summary
+    """
+    pass
+
+
+# Scenario 2: Generate Gherkin from a function with multiple parameters - Split into 4 tests
+def test_generate_gherkin_from_function_with_multiple_parameters__main_scenario(function_with_multiple_parameters):
+    """
     Given a callable with multiple documented parameters
     When I call make_gherkins with the callable's docstring
     Then the generated Gherkin should contain a Scenario for the main function behavior
-    And each parameter should be represented in the Given/When/Then steps
-    And the return value should be represented in the Then step
-    And all features should be verifiable through the public contract
     """
     pass
 
 
-def test_generate_gherkin_from_function_with_examples(function_with_examples):
+def test_generate_gherkin_from_function_with_multiple_parameters__parameters_in_steps(function_with_multiple_parameters):
     """
-    Scenario: Generate Gherkin from a function with examples
-    
+    Given a callable with multiple documented parameters
+    When I call make_gherkins with the callable's docstring
+    Then each parameter should be represented in the Given/When/Then steps
+    """
+    pass
+
+
+def test_generate_gherkin_from_function_with_multiple_parameters__return_in_then(function_with_multiple_parameters):
+    """
+    Given a callable with multiple documented parameters
+    When I call make_gherkins with the callable's docstring
+    Then the return value should be represented in the Then step
+    """
+    pass
+
+
+def test_generate_gherkin_from_function_with_multiple_parameters__verifiable_through_contract(function_with_multiple_parameters):
+    """
+    Given a callable with multiple documented parameters
+    When I call make_gherkins with the callable's docstring
+    Then all features should be verifiable through the public contract
+    """
+    pass
+
+
+# Scenario 3: Generate Gherkin from a function with examples - Split into 3 tests
+def test_generate_gherkin_from_function_with_examples__scenario_outline(function_with_examples):
+    """
     Given a callable with docstring examples
     When I call make_gherkins with the callable's docstring
     Then the generated Gherkin should include Scenario Outline sections
-    And the examples should be converted to Examples tables
-    And the metadata should include the number of examples
     """
     pass
 
 
-def test_generate_gherkin_from_class_method_docstring(class_method_with_docstring):
+def test_generate_gherkin_from_function_with_examples__examples_tables(function_with_examples):
     """
-    Scenario: Generate Gherkin from a class method docstring
-    
+    Given a callable with docstring examples
+    When I call make_gherkins with the callable's docstring
+    Then the examples should be converted to Examples tables
+    """
+    pass
+
+
+def test_generate_gherkin_from_function_with_examples__metadata_includes_count(function_with_examples):
+    """
+    Given a callable with docstring examples
+    When I call make_gherkins with the callable's docstring
+    Then the metadata should include the number of examples
+    """
+    pass
+
+
+# Scenario 4: Generate Gherkin from a class method docstring - Split into 3 tests
+def test_generate_gherkin_from_class_method_docstring__class_context(class_method_with_docstring):
+    """
     Given a class method with a comprehensive docstring
     When I call make_gherkins with the method's docstring
     Then the generated Gherkin should include the class context
-    And the method behavior should be described in scenarios
-    And constructor parameters should be in the Background section
     """
     pass
 
 
-def test_handle_callable_without_docstring(callable_without_docstring):
+def test_generate_gherkin_from_class_method_docstring__method_behavior_scenarios(class_method_with_docstring):
     """
-    Scenario: Handle callable without docstring
-    
+    Given a class method with a comprehensive docstring
+    When I call make_gherkins with the method's docstring
+    Then the method behavior should be described in scenarios
+    """
+    pass
+
+
+def test_generate_gherkin_from_class_method_docstring__constructor_in_background(class_method_with_docstring):
+    """
+    Given a class method with a comprehensive docstring
+    When I call make_gherkins with the method's docstring
+    Then constructor parameters should be in the Background section
+    """
+    pass
+
+
+# Scenario 5: Handle callable without docstring - Split into 3 tests
+def test_handle_callable_without_docstring__minimal_gherkin_generated(callable_without_docstring):
+    """
     Given a callable without a docstring
     When I call make_gherkins with the callable
     Then a minimal Gherkin feature file should be generated
-    And the feature should indicate missing documentation
-    And the metadata should indicate incomplete information
     """
     pass
 
 
-def test_validate_all_features_through_public_contract():
+def test_handle_callable_without_docstring__indicates_missing_documentation(callable_without_docstring):
     """
-    Scenario: Validate all features through public contract
-    
+    Given a callable without a docstring
+    When I call make_gherkins with the callable
+    Then the feature should indicate missing documentation
+    """
+    pass
+
+
+def test_handle_callable_without_docstring__metadata_indicates_incomplete(callable_without_docstring):
+    """
+    Given a callable without a docstring
+    When I call make_gherkins with the callable
+    Then the metadata should indicate incomplete information
+    """
+    pass
+
+
+# Scenario 6: Validate all features through public contract - Split into 4 tests
+def test_validate_all_features_through_public_contract__scenarios_executable():
+    """
     Given any generated Gherkin feature file
     When the features are extracted from the file
     Then all scenarios should be executable through the public API
-    And all Given/When/Then steps should map to public methods
-    And no internal implementation details should be exposed
-    And the feature file should be parseable by standard Gherkin parsers
     """
     pass
 
 
-def test_return_comprehensive_metadata_dictionary(callable_with_complete_docstring):
+def test_validate_all_features_through_public_contract__steps_map_to_methods():
     """
-    Scenario: Return comprehensive metadata dictionary
-    
+    Given any generated Gherkin feature file
+    When the features are extracted from the file
+    Then all Given/When/Then steps should map to public methods
+    """
+    pass
+
+
+def test_validate_all_features_through_public_contract__no_internal_details():
+    """
+    Given any generated Gherkin feature file
+    When the features are extracted from the file
+    Then no internal implementation details should be exposed
+    """
+    pass
+
+
+def test_validate_all_features_through_public_contract__parseable_by_standard_parsers():
+    """
+    Given any generated Gherkin feature file
+    When the features are extracted from the file
+    Then the feature file should be parseable by standard Gherkin parsers
+    """
+    pass
+
+
+# Scenario 7: Return comprehensive metadata dictionary - Split into 6 tests
+def test_return_comprehensive_metadata_dictionary__contains_file_path(callable_with_complete_docstring):
+    """
     Given a callable with a complete docstring
     When I call make_gherkins with the callable's docstring
     Then the returned dictionary should contain the feature file path
-    And the dictionary should contain the feature name
-    And the dictionary should contain the creation timestamp
-    And the dictionary should contain the number of scenarios generated
-    And the dictionary should contain the callable name and signature
-    And the dictionary should contain a content hash for verification
+    """
+    pass
+
+
+def test_return_comprehensive_metadata_dictionary__contains_feature_name(callable_with_complete_docstring):
+    """
+    Given a callable with a complete docstring
+    When I call make_gherkins with the callable's docstring
+    Then the dictionary should contain the feature name
+    """
+    pass
+
+
+def test_return_comprehensive_metadata_dictionary__contains_creation_timestamp(callable_with_complete_docstring):
+    """
+    Given a callable with a complete docstring
+    When I call make_gherkins with the callable's docstring
+    Then the dictionary should contain the creation timestamp
+    """
+    pass
+
+
+def test_return_comprehensive_metadata_dictionary__contains_scenarios_count(callable_with_complete_docstring):
+    """
+    Given a callable with a complete docstring
+    When I call make_gherkins with the callable's docstring
+    Then the dictionary should contain the number of scenarios generated
+    """
+    pass
+
+
+def test_return_comprehensive_metadata_dictionary__contains_callable_info(callable_with_complete_docstring):
+    """
+    Given a callable with a complete docstring
+    When I call make_gherkins with the callable's docstring
+    Then the dictionary should contain the callable name and signature
+    """
+    pass
+
+
+def test_return_comprehensive_metadata_dictionary__contains_content_hash(callable_with_complete_docstring):
+    """
+    Given a callable with a complete docstring
+    When I call make_gherkins with the callable's docstring
+    Then the dictionary should contain a content hash for verification
     """
     pass

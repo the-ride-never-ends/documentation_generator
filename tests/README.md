@@ -10,28 +10,52 @@ This directory contains test stubs for the `make_gherkins` functionality.
 
 ## Test Design
 
-Each test stub corresponds to exactly **one scenario** from `features/make_gherkins.feature`.
+Each test stub follows the **atomic test principle**: one Given, one When, one Then (no And clauses).
+
+The original 7 Gherkin scenarios have been split into **29 focused test stubs** where each "And" clause from the original scenarios becomes its own test.
+
+### Test Naming Convention
+
+Tests are named to indicate which scenario they belong to and what specific assertion they test:
+
+```
+test_<scenario_name>__<specific_assertion>
+```
 
 ### Test Docstrings
 
-Test docstrings are taken **directly from the Gherkin scenarios**, preserving the Given/When/Then structure:
+Test docstrings contain only **one Given-When-Then clause** (no And):
 
 ```python
-def test_generate_gherkin_from_simple_function_docstring(simple_function):
+def test_generate_gherkin_from_simple_function_docstring__gherkin_file_generated(simple_function):
     """
-    Scenario: Generate Gherkin from a simple function docstring
-    
     Given a callable with a docstring containing description, parameters, and returns
     When I call make_gherkins with the callable's docstring
     Then a Gherkin feature file should be generated
-    And the feature file should contain a Feature section with the description
-    And the feature file should contain Scenarios derived from the parameters
-    And a metadata dictionary should be returned
-    And the metadata dictionary should contain creation timestamp
-    And the metadata dictionary should contain content summary
+    """
+    pass
+
+
+def test_generate_gherkin_from_simple_function_docstring__feature_section_with_description(simple_function):
+    """
+    Given a callable with a docstring containing description, parameters, and returns
+    When I call make_gherkins with the callable's docstring
+    Then the feature file should contain a Feature section with the description
     """
     pass
 ```
+
+### Test Organization
+
+- **Scenario 1**: 6 tests (one Then + 5 Ands split)
+- **Scenario 2**: 4 tests (one Then + 3 Ands split)
+- **Scenario 3**: 3 tests (one Then + 2 Ands split)
+- **Scenario 4**: 3 tests (one Then + 2 Ands split)
+- **Scenario 5**: 3 tests (one Then + 2 Ands split)
+- **Scenario 6**: 4 tests (one Then + 3 Ands split)
+- **Scenario 7**: 6 tests (one Then + 5 Ands split)
+
+**Total**: 29 atomic test stubs
 
 ## Fixtures
 
@@ -93,20 +117,35 @@ When implementing tests:
 
 ## Example Implementation
 
+Each test should focus on **one specific assertion**:
+
 ```python
-def test_generate_gherkin_from_simple_function_docstring(simple_function, api_key):
+def test_generate_gherkin_from_simple_function_docstring__gherkin_file_generated(simple_function, api_key):
     """
-    Scenario: Generate Gherkin from a simple function docstring
-    ...
+    Given a callable with a docstring containing description, parameters, and returns
+    When I call make_gherkins with the callable's docstring
+    Then a Gherkin feature file should be generated
     """
     # When
     content, metadata = make_gherkins(simple_function, api_key=api_key)
     
-    # Then
+    # Then - Single focused assertion
     assert 'Feature:' in content
-    assert metadata['feature_name'] is not None
+    assert len(content) > 0
+
+
+def test_generate_gherkin_from_simple_function_docstring__metadata_contains_timestamp(simple_function, api_key):
+    """
+    Given a callable with a docstring containing description, parameters, and returns
+    When I call make_gherkins with the callable's docstring
+    Then the metadata dictionary should contain creation timestamp
+    """
+    # When
+    content, metadata = make_gherkins(simple_function, api_key=api_key)
+    
+    # Then - Single focused assertion
     assert 'creation_timestamp' in metadata
-    assert metadata['callable_name'] == 'simple_function'
+    assert metadata['creation_timestamp'] is not None
 ```
 
 ## Mocking OpenAI API
@@ -127,9 +166,18 @@ def mock_openai_client(mocker):
 
 ## Test Coverage Goals
 
-- ✅ All 7 Gherkin scenarios have corresponding test stubs
+- ✅ All 7 Gherkin scenarios split into 29 atomic test stubs
+- ✅ Each test follows one Given-When-Then pattern (no And clauses)
 - ⬜ Implement fixture functions with sample data
-- ⬜ Implement test logic with assertions
+- ⬜ Implement test logic with focused assertions
 - ⬜ Add OpenAI API mocking
 - ⬜ Add edge case tests
 - ⬜ Achieve >90% code coverage
+
+## Benefits of Atomic Tests
+
+**Focused Testing**: Each test validates one specific behavior  
+**Easier Debugging**: Failed tests immediately identify the problem  
+**Better Isolation**: Tests don't have cascading failures  
+**Clearer Intent**: Test names describe exactly what's being tested  
+**Independent Execution**: Tests can run in any order
