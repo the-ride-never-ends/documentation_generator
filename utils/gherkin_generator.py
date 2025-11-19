@@ -4,21 +4,44 @@ Gherkin generator module for converting callable docstrings into Gherkin feature
 
 import hashlib
 import inspect
+import json
 from datetime import datetime
-from typing import Dict, Any, Callable, Optional, Tuple
+from typing import Dict, Any, Callable, Optional, Tuple, List
+
+try:
+    from openai import OpenAI
+except ImportError:
+    OpenAI = None
 
 
 class GherkinGenerator:
     """
-    Generate Gherkin feature files from callable docstrings.
+    Generate Gherkin feature files from callable docstrings using LLM-powered generation.
     
-    This class provides functionality to convert Python callable docstrings
-    into Gherkin feature files for behavior-driven documentation.
+    This class uses OpenAI's API to generate clear, specific, and verifiable Gherkin scenarios
+    with an iterative refinement loop to ensure quality.
     """
     
-    def __init__(self):
-        """Initialize the Gherkin generator."""
-        pass
+    def __init__(self, api_key: Optional[str] = None, max_iterations: int = 3):
+        """
+        Initialize the Gherkin generator with OpenAI API configuration.
+        
+        Args:
+            api_key: OpenAI API key. If None, will try to use OPENAI_API_KEY environment variable.
+            max_iterations: Maximum number of refinement iterations for each section (default: 3)
+            
+        Raises:
+            RuntimeError: If OpenAI package is not installed
+        """
+        if OpenAI is None:
+            raise RuntimeError(
+                "OpenAI package is required for GherkinGenerator. "
+                "Install it with: pip install openai"
+            )
+        
+        self.api_key = api_key
+        self.max_iterations = max_iterations
+        self.client = OpenAI(api_key=api_key) if api_key else OpenAI()
     
     def make_gherkins(
         self, 
@@ -27,11 +50,11 @@ class GherkinGenerator:
         output_path: Optional[str] = None
     ) -> Tuple[str, Dict[str, Any]]:
         """
-        Generate a Gherkin feature file from a callable's docstring.
+        Generate a Gherkin feature file from a callable's docstring using LLM-powered generation.
         
-        This function takes a callable (function, method, or class) and converts
-        its docstring into a Gherkin feature file format. It extracts the description,
-        parameters, return values, and examples to create comprehensive scenarios.
+        This function uses OpenAI's API to generate clear, specific, and verifiable Gherkin scenarios.
+        Each section is iteratively refined through a classifier and editor loop until it meets
+        clarity standards (unambiguous, verifiable external behavior).
         
         Args:
             callable_obj: The callable object (function, method, or class) to document
@@ -40,7 +63,7 @@ class GherkinGenerator:
             
         Returns:
             Tuple containing:
-                - str: The generated Gherkin feature file content
+                - str: The generated Gherkin feature file content (or error message on failure)
                 - Dict[str, Any]: Metadata dictionary with information about the generation
                     - feature_name: Name of the feature
                     - feature_file_path: Path where file should be written
@@ -52,11 +75,14 @@ class GherkinGenerator:
                     - has_examples: Whether examples were included
                     - has_parameters: Whether parameters were documented
                     - has_return: Whether return value was documented
+                    - llm_iterations: Number of LLM refinement iterations used
+                    - error: Error message if generation failed (optional)
                     
         Raises:
             ValueError: If callable_obj is not a valid callable
             
         Examples:
+            >>> generator = GherkinGenerator(api_key="sk-...")
             >>> def sample_function(param1: str, param2: int) -> bool:
             ...     '''Sample function with parameters.
             ...     
@@ -68,7 +94,6 @@ class GherkinGenerator:
             ...         bool: Success status
             ...     '''
             ...     return True
-            >>> generator = GherkinGenerator()
             >>> content, metadata = generator.make_gherkins(sample_function)
             >>> print(metadata['feature_name'])
             Sample Function
@@ -91,13 +116,20 @@ class GherkinGenerator:
         # Generate feature name from callable name
         feature_name = self._generate_feature_name(callable_name)
         
-        # Generate Gherkin content
-        gherkin_content = self._generate_gherkin_content(
-            feature_name=feature_name,
-            callable_name=callable_name,
-            callable_signature=callable_signature,
-            parsed_doc=parsed_doc
-        )
+        # Try to generate Gherkin content using LLM
+        try:
+            gherkin_content, llm_iterations = self._generate_gherkin_with_llm(
+                feature_name=feature_name,
+                callable_name=callable_name,
+                callable_signature=callable_signature,
+                parsed_doc=parsed_doc
+            )
+            error_msg = None
+        except Exception as e:
+            # Return error message instead of raising for outer function
+            error_msg = f"Failed to generate Gherkin with LLM: {str(e)}"
+            gherkin_content = error_msg
+            llm_iterations = 0
         
         # Generate metadata
         metadata = self._generate_metadata(
@@ -106,7 +138,9 @@ class GherkinGenerator:
             callable_signature=callable_signature,
             gherkin_content=gherkin_content,
             parsed_doc=parsed_doc,
-            output_path=output_path
+            output_path=output_path,
+            llm_iterations=llm_iterations,
+            error=error_msg
         )
         
         return gherkin_content, metadata
@@ -240,15 +274,15 @@ class GherkinGenerator:
         words = callable_name.replace('_', ' ').split()
         return ' '.join(word.capitalize() for word in words)
     
-    def _generate_gherkin_content(
+    def _generate_gherkin_with_llm(
         self,
         feature_name: str,
         callable_name: str,
         callable_signature: str,
         parsed_doc: Dict[str, Any]
-    ) -> str:
+    ) -> Tuple[str, int]:
         """
-        Generate the Gherkin feature file content.
+        Generate Gherkin content using LLM with iterative refinement.
         
         Args:
             feature_name: Name of the feature
@@ -257,98 +291,474 @@ class GherkinGenerator:
             parsed_doc: Parsed docstring components
             
         Returns:
-            Gherkin feature file content as string
+            Tuple of (gherkin_content, total_iterations)
+            
+        Raises:
+            RuntimeError: If LLM generation fails
         """
-        lines = []
+        # Generate feature header
+        feature_header = self._generate_feature_header_with_llm(
+            feature_name, callable_name, parsed_doc
+        )
         
-        # Feature header
-        description = parsed_doc.get("description", "")
-        if not description:
-            description = f"Functionality of {callable_name}"
+        # Generate background section
+        background = self._generate_background_with_llm(
+            callable_name, callable_signature
+        )
         
-        lines.append(f"Feature: {feature_name}")
-        lines.append(f"  As a user of the {callable_name} function")
-        lines.append(f"  I want to use it according to its public contract")
-        lines.append(f"  So that I can achieve the documented behavior")
-        lines.append("")
+        # Generate main scenario
+        main_scenario, main_iterations = self._refine_scenario_with_llm(
+            scenario_type="main_execution",
+            callable_name=callable_name,
+            parsed_doc=parsed_doc
+        )
         
-        # Add description as comment
-        if description:
-            for desc_line in description.split('. '):
-                if desc_line.strip():
-                    lines.append(f"  # {desc_line.strip()}")
-            lines.append("")
+        # Generate error scenario if needed
+        error_scenario = ""
+        error_iterations = 0
+        if parsed_doc.get("raises"):
+            error_scenario, error_iterations = self._refine_scenario_with_llm(
+                scenario_type="error_handling",
+                callable_name=callable_name,
+                parsed_doc=parsed_doc
+            )
         
-        # Background section with callable signature
-        lines.append("  Background:")
-        lines.append(f"    Given the callable '{callable_name}' with signature {callable_signature}")
-        lines.append("    And the callable is accessible through the public API")
-        lines.append("")
+        # Generate examples scenario if needed
+        examples_scenario = ""
+        examples_iterations = 0
+        if parsed_doc.get("examples"):
+            examples_scenario, examples_iterations = self._refine_scenario_with_llm(
+                scenario_type="examples",
+                callable_name=callable_name,
+                parsed_doc=parsed_doc
+            )
         
-        # Main scenario - basic execution
-        lines.append(f"  Scenario: Execute {callable_name} with valid inputs")
+        # Generate verification scenario
+        verification_scenario, verification_iterations = self._refine_scenario_with_llm(
+            scenario_type="verification",
+            callable_name=callable_name,
+            parsed_doc=parsed_doc
+        )
         
-        # Add Given steps for parameters
+        # Combine all sections
+        sections = [
+            feature_header,
+            background,
+            main_scenario,
+        ]
+        
+        if error_scenario:
+            sections.append(error_scenario)
+        
+        if examples_scenario:
+            sections.append(examples_scenario)
+        
+        sections.append(verification_scenario)
+        
+        gherkin_content = "\n\n".join(sections)
+        
+        total_iterations = (
+            main_iterations + error_iterations + 
+            examples_iterations + verification_iterations
+        )
+        
+        return gherkin_content, total_iterations
+    
+    def _generate_feature_header_with_llm(
+        self,
+        feature_name: str,
+        callable_name: str,
+        parsed_doc: Dict[str, Any]
+    ) -> str:
+        """
+        Generate feature header using LLM.
+        
+        Args:
+            feature_name: Name of the feature
+            callable_name: Name of the callable
+            parsed_doc: Parsed docstring components
+            
+        Returns:
+            Feature header text
+            
+        Raises:
+            RuntimeError: If generation fails
+        """
+        description = parsed_doc.get("description", f"Functionality of {callable_name}")
+        
+        prompt = f"""Generate a Gherkin feature header for a function named '{callable_name}'.
+        
+Description: {description}
+
+Create a clear, specific feature header with:
+1. Feature: line with the feature name
+2. User story (As a... I want... So that...)
+3. Any relevant context as comments
+
+The user story must describe verifiable external behavior, not vague statements.
+
+Output only the feature header in valid Gherkin format."""
+        
+        try:
+            response = self.client.chat.completions.create(
+                model="gpt-4",
+                messages=[
+                    {"role": "system", "content": "You are an expert at writing clear, specific Gherkin scenarios that describe unambiguous, verifiable external behavior."},
+                    {"role": "user", "content": prompt}
+                ],
+                temperature=0.3,
+                max_tokens=500
+            )
+            return response.choices[0].message.content.strip()
+        except Exception as e:
+            raise RuntimeError(f"Failed to generate feature header: {str(e)}")
+    
+    def _generate_background_with_llm(
+        self,
+        callable_name: str,
+        callable_signature: str
+    ) -> str:
+        """
+        Generate background section using LLM.
+        
+        Args:
+            callable_name: Name of the callable
+            callable_signature: Signature of the callable
+            
+        Returns:
+            Background section text
+            
+        Raises:
+            RuntimeError: If generation fails
+        """
+        prompt = f"""Generate a Gherkin Background section for a callable named '{callable_name}' with signature: {callable_signature}
+
+Create a clear Background section with:
+1. Given step that establishes the callable exists and its signature
+2. And step that confirms it's accessible through the public API
+
+Output only the Background section in valid Gherkin format."""
+        
+        try:
+            response = self.client.chat.completions.create(
+                model="gpt-4",
+                messages=[
+                    {"role": "system", "content": "You are an expert at writing clear, specific Gherkin scenarios."},
+                    {"role": "user", "content": prompt}
+                ],
+                temperature=0.3,
+                max_tokens=300
+            )
+            return response.choices[0].message.content.strip()
+        except Exception as e:
+            raise RuntimeError(f"Failed to generate background: {str(e)}")
+    
+    def _refine_scenario_with_llm(
+        self,
+        scenario_type: str,
+        callable_name: str,
+        parsed_doc: Dict[str, Any]
+    ) -> Tuple[str, int]:
+        """
+        Generate and refine a scenario using LLM with iterative feedback.
+        
+        This implements the refinement loop: generate → classify → edit → regenerate
+        
+        Args:
+            scenario_type: Type of scenario (main_execution, error_handling, examples, verification)
+            callable_name: Name of the callable
+            parsed_doc: Parsed docstring components
+            
+        Returns:
+            Tuple of (scenario_content, iterations_used)
+            
+        Raises:
+            RuntimeError: If generation fails after max iterations
+        """
+        scenario = self._generate_scenario_with_llm(scenario_type, callable_name, parsed_doc)
+        
+        for iteration in range(self.max_iterations):
+            # Classify if the scenario is clear
+            is_clear, clarity_issues = self._classify_scenario_clarity(scenario)
+            
+            if is_clear:
+                return scenario, iteration + 1
+            
+            # If not clear, get editor feedback
+            editor_feedback = self._get_editor_feedback(scenario, clarity_issues)
+            
+            # Regenerate with editor feedback
+            scenario = self._regenerate_scenario_with_feedback(
+                scenario_type, callable_name, parsed_doc, editor_feedback
+            )
+        
+        # If we've exhausted iterations and still not clear, raise error
+        raise RuntimeError(
+            f"Failed to generate clear scenario for {scenario_type} after {self.max_iterations} iterations"
+        )
+    
+    def _generate_scenario_with_llm(
+        self,
+        scenario_type: str,
+        callable_name: str,
+        parsed_doc: Dict[str, Any]
+    ) -> str:
+        """
+        Generate initial scenario using LLM.
+        
+        Args:
+            scenario_type: Type of scenario
+            callable_name: Name of the callable
+            parsed_doc: Parsed docstring components
+            
+        Returns:
+            Generated scenario text
+            
+        Raises:
+            RuntimeError: If generation fails
+        """
+        prompts = {
+            "main_execution": self._get_main_execution_prompt,
+            "error_handling": self._get_error_handling_prompt,
+            "examples": self._get_examples_prompt,
+            "verification": self._get_verification_prompt
+        }
+        
+        prompt_func = prompts.get(scenario_type)
+        if not prompt_func:
+            raise RuntimeError(f"Unknown scenario type: {scenario_type}")
+        
+        prompt = prompt_func(callable_name, parsed_doc)
+        
+        try:
+            response = self.client.chat.completions.create(
+                model="gpt-4",
+                messages=[
+                    {"role": "system", "content": "You are an expert at writing clear, specific Gherkin scenarios that describe unambiguous, verifiable external behavior. Avoid vague terms like 'executes successfully' - instead specify concrete, observable outcomes like 'returns a dictionary with keys: status, data'."},
+                    {"role": "user", "content": prompt}
+                ],
+                temperature=0.3,
+                max_tokens=800
+            )
+            return response.choices[0].message.content.strip()
+        except Exception as e:
+            raise RuntimeError(f"Failed to generate scenario: {str(e)}")
+    
+    def _classify_scenario_clarity(self, scenario: str) -> Tuple[bool, List[str]]:
+        """
+        Use LLM to classify if a scenario is clear and specific.
+        
+        Args:
+            scenario: The scenario text to classify
+            
+        Returns:
+            Tuple of (is_clear, list_of_issues)
+            
+        Raises:
+            RuntimeError: If classification fails
+        """
+        prompt = f"""Analyze this Gherkin scenario for clarity and specificity:
+
+{scenario}
+
+Evaluate if the scenario describes unambiguous, verifiable external behavior. Check for:
+1. Vague terms like "executes successfully", "works correctly", "is valid"
+2. Missing concrete return values or state changes
+3. Ambiguous assertions that can't be objectively verified
+4. Missing specific data types or formats
+
+Respond in JSON format:
+{{
+    "is_clear": true/false,
+    "issues": ["list of specific issues found"]
+}}
+
+If there are no issues, set is_clear to true and issues to empty list."""
+        
+        try:
+            response = self.client.chat.completions.create(
+                model="gpt-3.5-turbo",
+                messages=[
+                    {"role": "system", "content": "You are a Gherkin quality classifier. You identify vague or ambiguous scenarios and require concrete, verifiable assertions."},
+                    {"role": "user", "content": prompt}
+                ],
+                temperature=0.1,
+                max_tokens=300
+            )
+            
+            result = json.loads(response.choices[0].message.content.strip())
+            return result["is_clear"], result.get("issues", [])
+        except Exception as e:
+            raise RuntimeError(f"Failed to classify scenario clarity: {str(e)}")
+    
+    def _get_editor_feedback(self, scenario: str, clarity_issues: List[str]) -> str:
+        """
+        Use LLM editor to provide specific feedback on unclear aspects.
+        
+        Args:
+            scenario: The scenario text
+            clarity_issues: List of identified issues
+            
+        Returns:
+            Editor feedback text
+            
+        Raises:
+            RuntimeError: If editor feedback fails
+        """
+        prompt = f"""You are an editor reviewing this Gherkin scenario:
+
+{scenario}
+
+The following clarity issues were identified:
+{chr(10).join(f'- {issue}' for issue in clarity_issues)}
+
+Provide specific, actionable feedback on how to make this scenario more clear and verifiable. Focus on:
+1. Replacing vague terms with concrete, specific assertions
+2. Adding specific data types, formats, or values
+3. Making assertions objectively verifiable
+
+Output your feedback as a list of specific improvements."""
+        
+        try:
+            response = self.client.chat.completions.create(
+                model="gpt-3.5-turbo",
+                messages=[
+                    {"role": "system", "content": "You are a Gherkin editor who provides specific, actionable feedback to improve scenario clarity."},
+                    {"role": "user", "content": prompt}
+                ],
+                temperature=0.3,
+                max_tokens=500
+            )
+            return response.choices[0].message.content.strip()
+        except Exception as e:
+            raise RuntimeError(f"Failed to get editor feedback: {str(e)}")
+    
+    def _regenerate_scenario_with_feedback(
+        self,
+        scenario_type: str,
+        callable_name: str,
+        parsed_doc: Dict[str, Any],
+        editor_feedback: str
+    ) -> str:
+        """
+        Regenerate scenario incorporating editor feedback.
+        
+        Args:
+            scenario_type: Type of scenario
+            callable_name: Name of the callable
+            parsed_doc: Parsed docstring components
+            editor_feedback: Feedback from editor
+            
+        Returns:
+            Regenerated scenario text
+            
+        Raises:
+            RuntimeError: If regeneration fails
+        """
+        prompts = {
+            "main_execution": self._get_main_execution_prompt,
+            "error_handling": self._get_error_handling_prompt,
+            "examples": self._get_examples_prompt,
+            "verification": self._get_verification_prompt
+        }
+        
+        prompt_func = prompts.get(scenario_type)
+        if not prompt_func:
+            raise RuntimeError(f"Unknown scenario type: {scenario_type}")
+        
+        base_prompt = prompt_func(callable_name, parsed_doc)
+        
+        enhanced_prompt = f"""{base_prompt}
+
+IMPORTANT: Incorporate this editor feedback to improve clarity:
+
+{editor_feedback}
+
+Generate an improved version with concrete, verifiable assertions."""
+        
+        try:
+            response = self.client.chat.completions.create(
+                model="gpt-4",
+                messages=[
+                    {"role": "system", "content": "You are an expert at writing clear, specific Gherkin scenarios. You always incorporate feedback to make scenarios more concrete and verifiable."},
+                    {"role": "user", "content": enhanced_prompt}
+                ],
+                temperature=0.3,
+                max_tokens=800
+            )
+            return response.choices[0].message.content.strip()
+        except Exception as e:
+            raise RuntimeError(f"Failed to regenerate scenario: {str(e)}")
+    
+    def _get_main_execution_prompt(self, callable_name: str, parsed_doc: Dict[str, Any]) -> str:
+        """Generate prompt for main execution scenario."""
         parameters = parsed_doc.get("parameters", [])
-        if parameters:
-            lines.append("    Given the following parameters are provided:")
-            for param in parameters:
-                param_name = param.get("name", "unknown")
-                param_desc = param.get("description", "a value")
-                lines.append(f"      | {param_name} | {param_desc} |")
-        else:
-            lines.append("    Given no parameters are required")
-        
-        # Add When step
-        lines.append(f"    When I call {callable_name} with the provided parameters")
-        
-        # Add Then steps for return value
         returns = parsed_doc.get("returns", "")
-        if returns:
-            lines.append(f"    Then the function should return {returns}")
-        else:
-            lines.append("    Then the function should execute successfully")
         
-        lines.append("    And all behavior should conform to the public contract")
-        lines.append("")
+        param_text = "\n".join([f"- {p['name']}: {p['description']}" for p in parameters])
         
-        # Add scenario for error handling if raises are documented
+        return f"""Generate a Gherkin scenario for the main execution path of '{callable_name}'.
+
+Parameters:
+{param_text if param_text else "None"}
+
+Returns: {returns if returns else "Not specified"}
+
+Create a scenario with:
+1. Given steps for input parameters (specific values/types)
+2. When step calling the function
+3. Then step with CONCRETE return value (e.g., "returns a dictionary with keys: x, y, z" NOT "executes successfully")
+4. Additional verifiable assertions
+
+Output only the Scenario in valid Gherkin format with specific, verifiable assertions."""
+    
+    def _get_error_handling_prompt(self, callable_name: str, parsed_doc: Dict[str, Any]) -> str:
+        """Generate prompt for error handling scenario."""
         raises = parsed_doc.get("raises", [])
-        if raises:
-            lines.append(f"  Scenario: Handle error conditions in {callable_name}")
-            lines.append("    Given invalid or edge case inputs are provided")
-            lines.append(f"    When I call {callable_name} with invalid parameters")
-            lines.append("    Then appropriate exceptions should be raised:")
-            for raise_desc in raises:
-                lines.append(f"      # {raise_desc}")
-            lines.append("    And the error messages should be descriptive")
-            lines.append("")
+        raises_text = "\n".join([f"- {r}" for r in raises])
         
-        # Add scenario outline if examples exist
+        return f"""Generate a Gherkin scenario for error handling in '{callable_name}'.
+
+Exceptions that can be raised:
+{raises_text}
+
+Create a scenario with:
+1. Given steps for invalid inputs (be specific about what makes them invalid)
+2. When step calling the function
+3. Then step with SPECIFIC exception types and expected error messages
+4. Verifiable assertions about error behavior
+
+Output only the Scenario in valid Gherkin format with specific error conditions."""
+    
+    def _get_examples_prompt(self, callable_name: str, parsed_doc: Dict[str, Any]) -> str:
+        """Generate prompt for examples scenario."""
         examples = parsed_doc.get("examples", [])
-        if examples:
-            lines.append(f"  Scenario Outline: Test {callable_name} with example inputs")
-            if parameters:
-                lines.append("    Given the following example inputs: <inputs>")
-            lines.append(f"    When I execute {callable_name}")
-            lines.append("    Then I should get the expected result: <output>")
-            lines.append("")
-            lines.append("    Examples:")
-            lines.append("      | inputs | output |")
-            for example in examples:
-                # Simplified example representation
-                lines.append(f"      | {example[:40]} | expected |")
-            lines.append("")
+        examples_text = "\n".join([f"- {ex}" for ex in examples])
         
-        # Add verification scenario
-        lines.append(f"  Scenario: Verify {callable_name} public contract")
-        lines.append(f"    Given the {callable_name} callable is part of the public API")
-        lines.append("    When I inspect its interface")
-        lines.append("    Then all documented features should be accessible")
-        lines.append("    And the behavior should match the documentation")
-        lines.append("    And no internal implementation details should be exposed")
-        
-        return '\n'.join(lines)
+        return f"""Generate a Gherkin Scenario Outline for '{callable_name}' using these examples:
+
+{examples_text}
+
+Create a scenario outline with:
+1. Given/When/Then steps with placeholders
+2. Examples table with SPECIFIC input and output values
+3. Concrete, verifiable expected results (not just "expected")
+
+Output only the Scenario Outline in valid Gherkin format with specific test data."""
+    
+    def _get_verification_prompt(self, callable_name: str, parsed_doc: Dict[str, Any]) -> str:
+        """Generate prompt for public contract verification scenario."""
+        return f"""Generate a Gherkin scenario to verify the public contract of '{callable_name}'.
+
+Create a scenario that verifies:
+1. The callable is accessible via public API
+2. Documented features are available
+3. Behavior matches documentation
+4. No internal implementation details exposed
+
+Use SPECIFIC assertions like "the function signature matches <signature>" NOT vague terms like "features are accessible".
+
+Output only the Scenario in valid Gherkin format with concrete verification steps."""
     
     def _generate_metadata(
         self,
@@ -357,7 +767,9 @@ class GherkinGenerator:
         callable_signature: str,
         gherkin_content: str,
         parsed_doc: Dict[str, Any],
-        output_path: Optional[str] = None
+        output_path: Optional[str] = None,
+        llm_iterations: int = 0,
+        error: Optional[str] = None
     ) -> Dict[str, Any]:
         """
         Generate metadata dictionary about the Gherkin generation.
@@ -369,6 +781,8 @@ class GherkinGenerator:
             gherkin_content: Generated Gherkin content
             parsed_doc: Parsed docstring components
             output_path: Optional output path
+            llm_iterations: Number of LLM refinement iterations used
+            error: Error message if generation failed
             
         Returns:
             Metadata dictionary
@@ -387,7 +801,7 @@ class GherkinGenerator:
         # Generate timestamp
         timestamp = datetime.now().isoformat()
         
-        return {
+        metadata = {
             "feature_name": feature_name,
             "feature_file_path": output_path,
             "creation_timestamp": timestamp,
@@ -399,17 +813,25 @@ class GherkinGenerator:
             "has_parameters": len(parsed_doc.get("parameters", [])) > 0,
             "has_return": bool(parsed_doc.get("returns", "")),
             "content_length": len(gherkin_content),
-            "description": parsed_doc.get("description", "")[:100]  # First 100 chars
+            "description": parsed_doc.get("description", "")[:100],  # First 100 chars
+            "llm_iterations": llm_iterations
         }
+        
+        if error:
+            metadata["error"] = error
+        
+        return metadata
 
 
 def make_gherkins(
     callable_obj: Callable,
     docstring: Optional[str] = None,
-    output_path: Optional[str] = None
+    output_path: Optional[str] = None,
+    api_key: Optional[str] = None,
+    max_iterations: int = 3
 ) -> Tuple[str, Dict[str, Any]]:
     """
-    Generate a Gherkin feature file from a callable's docstring.
+    Generate a Gherkin feature file from a callable's docstring using LLM-powered generation.
     
     This is a convenience function that creates a GherkinGenerator instance
     and calls its make_gherkins method. It provides a simple public API
@@ -419,14 +841,17 @@ def make_gherkins(
         callable_obj: The callable object (function, method, or class) to document
         docstring: Optional docstring to use instead of extracting from callable
         output_path: Optional path where the feature file should be written
+        api_key: OpenAI API key. If None, will try to use OPENAI_API_KEY environment variable.
+        max_iterations: Maximum number of refinement iterations for each section (default: 3)
         
     Returns:
         Tuple containing:
-            - str: The generated Gherkin feature file content
+            - str: The generated Gherkin feature file content (or error message on failure)
             - Dict[str, Any]: Metadata dictionary with information about the generation
             
     Raises:
         ValueError: If callable_obj is not a valid callable
+        RuntimeError: If OpenAI package is not installed
         
     Examples:
         >>> def example_function(x: int) -> int:
@@ -439,9 +864,9 @@ def make_gherkins(
         ...         int: Result of x * 2
         ...     '''
         ...     return x * 2
-        >>> content, metadata = make_gherkins(example_function)
+        >>> content, metadata = make_gherkins(example_function, api_key="sk-...")
         >>> assert 'Feature:' in content
         >>> assert metadata['callable_name'] == 'example_function'
     """
-    generator = GherkinGenerator()
+    generator = GherkinGenerator(api_key=api_key, max_iterations=max_iterations)
     return generator.make_gherkins(callable_obj, docstring, output_path)
