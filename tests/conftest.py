@@ -6,6 +6,11 @@ import pytest
 from unittest.mock import Mock, patch
 
 
+class FixtureError(RuntimeError):
+    """Custom exception for fixture-related errors."""
+    pass
+
+
 @pytest.fixture(scope="session")
 def mock_openai_api():
     """
