@@ -4,7 +4,6 @@ _Claude_ignore_this_folder_please/
 venv
 __pycache__/
 .venv
-tests/
 
 # Generated documentation
 docs/
